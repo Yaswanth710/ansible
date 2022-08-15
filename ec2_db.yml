@@ -1,0 +1,61 @@
+---
+ - hosts: localhost
+   connection: local
+   gather_facts: no
+   tasks:
+
+     - name: Include the variable
+       include_vars: vars/input_vars
+
+     - name: Create EC2 Key_pair for db
+       ec2_key:
+         name: vprodbkey
+         region: "{{region}}"
+       register: vprodbkey_out
+
+     - name: save the key pair to loginkey.pem
+       copy:
+         content: "{{vprodbkey_out.key.private_key}}"
+         dest: "./loginkey1.pem"
+         mode: 0600
+       when: vprodbkey_out.changed
+
+     - name: Create EC2 Security groups
+       ec2_group:
+          name: dbSG
+          description: Security group for databases
+          region: "{{region}}"
+          vpc_id: "{{vpc_id}}"
+          purge_rules: no
+          rules:
+            - proto: tcp
+              from_port: 22
+              to_port: 22
+              cidr_ip: 136.185.232.89/32
+
+            - proto: tcp
+              from_port: 22
+              to_port: 22
+              group_id: "{{ansibleSGid}}"
+
+       register: dbSG_out
+
+     - name: Creating db01 EC2 Instance
+       ec2:
+         key_name: vprodbkey
+         region: "{{region}}"
+         instance_type: t2.micro
+         image: "{{db_ami}}"
+         wait: yes
+         wait_timeout: 300
+         instance_tags:
+              Name: "db01"
+              Project: Ansible
+         exact_count: 1
+         count_tag:
+              Name: "db01"
+              Project: Ansible
+         group_id: "{{dbSG_out.group_id}}" 
+       
+       register: db01_out  
+
