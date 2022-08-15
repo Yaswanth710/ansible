@@ -1,0 +1,4 @@
+region: "us-east-1"
+vpc_id: vpc-0c78856b3e8690034
+ansibleSGid: sg-04d1f553e892c4986
+web_ami: ami-02358d9f5245918a3

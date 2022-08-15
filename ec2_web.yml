@@ -1,0 +1,82 @@
+---
+ - hosts: localhost
+   connection: local
+   gather_facts: False
+   tasks:
+     - name: Input the variables
+       include_vars: vars/input_vars 
+
+     - name: Create ec2 key pair
+       ec2_key:
+          name: vprodkey
+          region: "{{region}}"
+       register: vprodkey_out
+
+     - name: save the private key into loginkey_vpro.pem
+       copy:
+         content: "{{vprodkey_out.key.private_key}}"
+         dest: "./loginkey_vpro.pem"
+         mode: 0600
+       when: vprodkey_out.changed
+     
+     - name: Ceate the security group web01
+       ec2_group:
+          name: websg
+          description: web-sg
+          region: "{{region}}"
+          vpc_id: "{{vpc_id}}"
+          purge_rules: no
+          rules:
+            - proto: tcp
+              from_port: 22
+              to_port: 22
+              cidr_ip: 136.185.232.89/32
+
+            - proto: tcp
+              from_port: 22
+              to_port: 22
+              group_id: "{{ansibleSGid}}"              
+
+       register: websg_out
+
+     - name: Create EC2 instance
+       ec2:
+         key_name: vprodkey
+         region: "{{region}}"
+         instance_type: t2.micro
+         image: "{{web_ami}}"
+         wait: yes
+         wait_timeout: 300
+         instance_tags:
+            Name: "web01"
+            Project: Ansible
+         exact_count: 1
+         count_tag:
+           Name: "web01"
+           Project: Ansible
+         group_id: "{{websg_out.group_id}}"
+
+       register: web01_out
+
+     - name: Create web02 Ec2 instance
+       ec2:
+         key_name: vprodkey
+         region: "{{region}}"
+         instance_type: t2.micro
+         image: "{{web_ami}}"
+         wait: yes
+         wait_timeout: 300
+         instance_tags:
+            Name: "web02"
+            Project: Ansible
+         exact_count: 1
+         count_tag:
+             Name: "web02"
+             Project: Ansible
+         group_id: "{{websg_out.group_id}}" 
+
+       register: web02_out 
+
+               
+      
+       
